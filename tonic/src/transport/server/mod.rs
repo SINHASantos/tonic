@@ -900,13 +900,6 @@ impl<L> Router<L> {
     pub fn into_service<ResBody>(self) -> L::Service
     where
         L: Layer<Routes>,
-        L::Service:
-            Service<Request<BoxBody>, Response = Response<ResBody>> + Clone + Send + 'static,
-        <<L as Layer<Routes>>::Service as Service<Request<BoxBody>>>::Future: Send + 'static,
-        <<L as Layer<Routes>>::Service as Service<Request<BoxBody>>>::Error:
-            Into<crate::Error> + Send,
-        ResBody: http_body::Body<Data = Bytes> + Send + 'static,
-        ResBody::Error: Into<crate::Error>,
     {
         self.server.service_builder.service(self.routes.prepare())
     }
@@ -1037,10 +1030,10 @@ where
             .layer(BoxCloneService::layer())
             .map_request(move |mut request: Request<BoxBody>| {
                 match &conn_info {
-                    tower::util::Either::A(inner) => {
+                    tower::util::Either::Left(inner) => {
                         request.extensions_mut().insert(inner.clone());
                     }
-                    tower::util::Either::B(inner) => {
+                    tower::util::Either::Right(inner) => {
                         #[cfg(feature = "tls")]
                         {
                             request.extensions_mut().insert(inner.clone());
